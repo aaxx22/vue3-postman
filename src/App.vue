@@ -1,6 +1,6 @@
 <template>
   <div class="index">
-    <el-form ref="form" :model="state.reqConfig" label-width="100px">
+    <el-form ref="form" :model="state.reqConfig" label-width="100px" v-loading="state.isLoading">
       <el-form-item label="请求地址">
         <el-input
           v-model="state.reqConfig.url"
@@ -46,7 +46,13 @@
         <el-table :data="state.reqConfig.headers" style="width: 100%">
           <el-table-column prop="key" label="key" width="180">
           </el-table-column>
-          <el-table-column prop="value" label="value"> </el-table-column>
+          <el-table-column prop="value" label="value">
+            <template #default="scope">
+              <div class="line2" :title="scope.row.value">
+                <span>{{scope.row.value}}</span>
+              </div>
+            </template>
+          </el-table-column>
         </el-table>
       </el-form-item>
       <el-form-item label="请求参数">
@@ -71,7 +77,13 @@
         <el-table :data="state.reqConfig.data" style="width: 100%">
           <el-table-column prop="key" label="key" width="180">
           </el-table-column>
-          <el-table-column prop="value" label="value"> </el-table-column>
+          <el-table-column prop="value" label="value">
+            <template #default="scope">
+              <div class="line2" :title="scope.row.value">
+                <span>{{scope.row.value}}</span>
+              </div>
+            </template>
+          </el-table-column>
         </el-table>
       </el-form-item>
       <el-form-item label="">
@@ -105,31 +117,29 @@
               <div class="body">
                 <div class="url">{{ item.url }}</div>
                 <div class="method">{{ item.method }}</div>
-                <div class="header" v-if="!isEmpty(item.headers)">
-                  <p>请求头信息</p>
-                  <p
-                    class="head-item"
-                    v-for="(item, key) in item.headers"
-                    :key="key"
-                  >
-                    <span>{{ key }}: </span>
-                    <span>{{ item }}</span>
-                  </p>
-                </div>
-                <div class="data" v-if="!isEmpty(item.data)">
-                  <p>请求参数</p>
-                  <p
-                    class="head-item"
-                    v-for="(item, key) in item.data"
-                    :key="key"
-                  >
-                    <span>{{ key }}: </span>
-                    <span>{{ item }}</span>
-                  </p>
-                </div>
-                <div class="return">
-                  响应信息：{{ JSON.stringify(item.returns) }}
-                </div>
+                <el-table :data="reqTable" style="width: 100%">
+                  <el-table-column prop="label" label="类型" width="80">
+                  </el-table-column>
+                  <el-table-column prop="prop" label="值">
+                    <template #default="scope">
+                      <div class="line2 content">
+                            <div
+                              class="tip-item line2"
+                              v-for="(item, key) in item[scope.row.key]"
+                              :key="key"
+                            >
+                              <div>{{ key }}:</div>
+                              <div>{{ item }}</div>
+                            </div>
+                      </div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="label" label="操作" width="80" fixed="right">
+                    <template #default="scope">
+                      <el-button type="text" @click="viewJson(item[scope.row.key])">json详情</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
               </div>
               <div class="opt">
                 <el-button type="text" size="small" @click="delRecord(index)"
@@ -142,24 +152,49 @@
             </div>
           </el-scrollbar>
         </div>
-        <div class="tac" v-else>
-          暂无记录
-        </div>
+        <div class="tac" v-else>暂无记录</div>
       </el-card>
     </div>
   </div>
+  <el-dialog title="JSON查看" v-model="state.dialogVisible" width="700px">
+    <div>
+       <json-viewer :value="state.jsonData" copyable boxed sort></json-viewer>
+    </div>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button type="primary" @click="state.dialogVisible = false"
+          >确 定</el-button
+        >
+      </span>
+    </template>
+  </el-dialog>
+  
 </template>
 
 <script>
 import axios from 'axios';
 import { reactive, watch } from 'vue';
-import { ElMessage ,ElMessageBox} from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 // This starter template is using Vue 3 experimental <script setup> SFCs
 // Check out https://github.com/vuejs/rfcs/blob/master/active-rfcs/0040-script-setup.md
 export default {
   name: 'Index',
   setup() {
+    const reqTable = reactive([
+      {
+        label: '请求头信息',
+        key: 'headers',
+      },
+      {
+        label: '请求参数',
+        key: 'data',
+      },
+      {
+        label: '返回信息',
+        key: 'returns',
+      },
+    ]);
     const setStore = function (key, data) {
       if (!key) {
         return undefined;
@@ -202,7 +237,11 @@ export default {
         data: [],
       },
       search: '',
+      dialogVisible: false,
+      jsonData:{},
+      isLoading:false
     });
+
     const handleSearch = function () {
       const arr = getStore('record');
       state.search = state.search.trim();
@@ -215,14 +254,15 @@ export default {
     };
     const delRecord = function (index) {
       ElMessageBox.confirm('此操作将永久删除该文件, 是否继续?', '提示', {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning',
-        }).then(()=>{
-
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
+        .then(() => {
           state.record.splice(index, 1);
           setStore('record', state.record);
-        }).catch(()=>{})
+        })
+        .catch(() => {});
     };
     const fillIn = function (item) {
       state.reqConfig['url'] = item.url;
@@ -230,14 +270,15 @@ export default {
       state.reqConfig['headers'] = Object.keys(item.headers).map((key) => {
         return {
           key,
-          value: item.data[key],
-        }
+          value: item.headers[key],
+        };
       });
+      console.log(state.reqConfig['headers']);
       state.reqConfig['data'] = Object.keys(item.data).map((key) => {
         return {
           key,
           value: item.data[key],
-        }
+        };
       });
       // console.log(state.reqConfig);
     };
@@ -250,6 +291,7 @@ export default {
     const onSubmit = function (e) {
       // console.log(state.reqConfig);
       const { url, method, headers, data } = state.reqConfig;
+      state.isLoading = true
       if (!url) {
         ElMessage.error('url不能为空');
         return;
@@ -285,13 +327,20 @@ export default {
           arr.push(obj);
           setStore('record', arr);
           state.record = getStore('record');
+          state.isLoading = false
           // console.log(resJson)
         })
         .catch((err) => {
           resJson.msg = '报错信息';
+          state.isLoading = false
           resJson.val = err;
         });
     };
+    const viewJson = function(e){
+      state.jsonData = e
+      state.dialogVisible = true
+
+    }
     const onAddHeader = function () {
       const { key, value } = reqHeaders;
       if (!key) {
@@ -338,6 +387,7 @@ export default {
       delRecord,
       fillIn,
       handleSearch,
+      reqTable,viewJson
     };
   },
 };
@@ -348,10 +398,24 @@ export default {
   margin: 0;
   padding: 0;
 }
+.content {
+  max-height: 50px;
+  overflow: hidden;
+}
+.value {
+  max-width: 250px;
+  max-height: 150px;
+  min-height: 16px;
+  word-wrap: break-word;
+  overflow: auto;
+}
 .df {
   display: flex;
 }
-.tac{
+.tip-item {
+  margin-bottom: 5px;
+}
+.tac {
   text-align: center;
 }
 .card-head {
@@ -364,9 +428,18 @@ export default {
 .index {
   width: 800px;
   margin-top: 20px;
+  div {
+    max-width: 800px;
+  }
 }
 /deep/.el-input__suffix {
   right: 0;
+}
+.line2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .history {
   width: 500px;
@@ -378,7 +451,9 @@ export default {
 .history {
   .item {
     border-bottom: 1px solid #eee;
-    padding: 10px 0;
+    // padding: 10px 0;
+    padding-top: 10px;
+    padding-bottom: 40px;
     position: relative;
     .url {
       font-size: 14px;
@@ -406,13 +481,9 @@ export default {
     }
     .return {
       font-size: 13px;
-       width: 95%;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
+      width: 95%;
     }
     .body {
-     
       overflow: hidden;
       div {
         word-wrap: break-word;

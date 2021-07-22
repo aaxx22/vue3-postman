@@ -1,13 +1,17 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import {ElForm,ElFormItem,ElCard,ElButton,ElInput,ElSelect,ElOption,ElScrollbar,ElTable,ElTableColumn} from 'element-plus';
+import {ElForm,ElFormItem,ElCard,ElButton,ElInput,ElSelect,ElOption,ElScrollbar,ElTable,ElTableColumn,ElTooltip,ElDialog,ElLoading} from 'element-plus';
 import JsonViewer from "vue3-json-viewer"
 import 'element-plus/lib/theme-chalk/index.css';
 const app = createApp(App)
 
+
+app.use(ElLoading)
 app.component(ElForm.name,ElForm)
 app.component(ElInput.name,ElInput)
 app.component(ElTable.name,ElTable)
+app.component(ElTooltip.name,ElTooltip)
+app.component(ElDialog.name,ElDialog)
 app.component(ElTableColumn.name,ElTableColumn)
 app.component(ElScrollbar.name,ElScrollbar)
 app.component(ElOption.name,ElOption)
