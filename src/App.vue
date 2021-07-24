@@ -1,14 +1,19 @@
 <template>
   <div class="index">
-    <el-form ref="form" :model="state.reqConfig" label-width="100px" v-loading="state.isLoading">
+    <el-form
+      ref="form"
+      :model="reqConfig"
+      label-width="100px"
+      v-loading="isLoading"
+    >
       <el-form-item label="请求地址">
         <el-input
-          v-model="state.reqConfig.url"
+          v-model="reqConfig.url"
           placeholder="请输入请求地址"
         ></el-input>
       </el-form-item>
       <el-form-item label="请求方法">
-        <el-select v-model="state.reqConfig.method" placeholder="请选择">
+        <el-select v-model="reqConfig.method" placeholder="请选择">
           <el-option
             v-for="item in methods"
             :key="item"
@@ -43,20 +48,20 @@
             </template>
           </el-input>
         </div>
-        <el-table :data="state.reqConfig.headers" style="width: 100%">
+        <el-table :data="reqConfig.headers" style="width: 100%">
           <el-table-column prop="key" label="key" width="180">
           </el-table-column>
           <el-table-column prop="value" label="value">
             <template #default="scope">
               <div class="line2" :title="scope.row.value">
-                <span>{{scope.row.value}}</span>
+                <span>{{ scope.row.value }}</span>
               </div>
             </template>
           </el-table-column>
         </el-table>
       </el-form-item>
       <el-form-item label="请求参数">
-        <div class="df">
+        <!-- <div class="df">
           <el-select
             v-model="reqData.key"
             allow-create
@@ -74,7 +79,7 @@
             </template>
           </el-input>
         </div>
-        <el-table :data="state.reqConfig.data" style="width: 100%">
+        <el-table :data="reqConfig.data" style="width: 100%">
           <el-table-column prop="key" label="key" width="180">
           </el-table-column>
           <el-table-column prop="value" label="value">
@@ -84,13 +89,22 @@
               </div>
             </template>
           </el-table-column>
-        </el-table>
+        </el-table> -->
+        <vue-json-editor
+          v-model="reqConfig.data"
+          :show-btns="true"
+          :expandedOnStart="true"
+          @json-change="onJsonChange"
+          mode="code"
+          lang="zh"
+          :showBtns="false"
+        />
       </el-form-item>
       <el-form-item label="">
         <el-button type="primary" @click="onSubmit">发送请求</el-button>
       </el-form-item>
     </el-form>
-    <div>
+    <div style="margin-left: 100px">
       <p>{{ resJson.msg }}</p>
       <json-viewer :value="resJson.val" copyable boxed sort></json-viewer>
     </div>
@@ -100,18 +114,18 @@
           <div class="card-head">
             <div class="title">历史请求</div>
             <el-input
-              v-model="state.search"
+              v-model="search"
               placeholder="请输入关键词"
               @input="handleSearch"
               clearable
             ></el-input>
           </div>
         </template>
-        <div v-if="state.record">
-          <el-scrollbar height="550px">
+        <div v-if="record">
+          <el-scrollbar height="550px" style="padding-right: 10px">
             <div
               class="item"
-              v-for="(item, index) in state.record"
+              v-for="(item, index) in record"
               :key="index"
             >
               <div class="body">
@@ -123,20 +137,29 @@
                   <el-table-column prop="prop" label="值">
                     <template #default="scope">
                       <div class="line2 content">
-                            <div
-                              class="tip-item line2"
-                              v-for="(item, key) in item[scope.row.key]"
-                              :key="key"
-                            >
-                              <div>{{ key }}:</div>
-                              <div>{{ item }}</div>
-                            </div>
+                        <div
+                          class="tip-item line2"
+                          v-for="(item, key) in item[scope.row.key]"
+                          :key="key"
+                        >
+                          <div>{{ key }}:</div>
+                          <div>{{ item }}</div>
+                        </div>
                       </div>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="label" label="操作" width="80" fixed="right">
+                  <el-table-column
+                    prop="label"
+                    label="操作"
+                    width="80"
+                    fixed="right"
+                  >
                     <template #default="scope">
-                      <el-button type="text" @click="viewJson(item[scope.row.key])">json详情</el-button>
+                      <el-button
+                        type="text"
+                        @click="viewJson(item[scope.row.key])"
+                        >json详情</el-button
+                      >
                     </template>
                   </el-table-column>
                 </el-table>
@@ -156,30 +179,33 @@
       </el-card>
     </div>
   </div>
-  <el-dialog title="JSON查看" v-model="state.dialogVisible" width="700px">
+  <el-dialog title="JSON查看" v-model="dialogVisible" width="700px">
     <div>
-       <json-viewer :value="state.jsonData" copyable boxed sort></json-viewer>
+      <json-viewer :value="jsonData" copyable boxed sort></json-viewer>
     </div>
     <template #footer>
       <span class="dialog-footer">
-        <el-button type="primary" @click="state.dialogVisible = false"
+        <el-button type="primary" @click="dialogVisible = false"
           >确 定</el-button
         >
       </span>
     </template>
   </el-dialog>
-  
 </template>
 
 <script>
 import axios from 'axios';
-import { reactive, watch } from 'vue';
+import { reactive, watch,toRefs } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Vue3JsonEditor } from 'vue3-json-editor';
 
 // This starter template is using Vue 3 experimental <script setup> SFCs
 // Check out https://github.com/vuejs/rfcs/blob/master/active-rfcs/0040-script-setup.md
 export default {
   name: 'Index',
+  components: {
+    VueJsonEditor: Vue3JsonEditor,
+  },
   setup() {
     const reqTable = reactive([
       {
@@ -234,13 +260,17 @@ export default {
         url: '',
         method: 'GET',
         headers: [],
-        data: [],
+        data: {},
       },
       search: '',
       dialogVisible: false,
-      jsonData:{},
-      isLoading:false
+      jsonData: {},
+      isLoading: false,
     });
+
+    function onJsonChange(value) {
+      console.log('value:', value);
+    }
 
     const handleSearch = function () {
       const arr = getStore('record');
@@ -291,12 +321,14 @@ export default {
     const onSubmit = function (e) {
       // console.log(state.reqConfig);
       const { url, method, headers, data } = state.reqConfig;
-      state.isLoading = true
+      state.isLoading = true;
       if (!url) {
         ElMessage.error('url不能为空');
+        state.isLoading = false;
         return;
       }
       if (!method) {
+        state.isLoading = false;
         ElMessage.error('method不能为空');
         return;
       }
@@ -327,20 +359,19 @@ export default {
           arr.push(obj);
           setStore('record', arr);
           state.record = getStore('record');
-          state.isLoading = false
+          state.isLoading = false;
           // console.log(resJson)
         })
         .catch((err) => {
           resJson.msg = '报错信息';
-          state.isLoading = false
+          state.isLoading = false;
           resJson.val = err;
         });
     };
-    const viewJson = function(e){
-      state.jsonData = e
-      state.dialogVisible = true
-
-    }
+    const viewJson = function (e) {
+      state.jsonData = e;
+      state.dialogVisible = true;
+    };
     const onAddHeader = function () {
       const { key, value } = reqHeaders;
       if (!key) {
@@ -374,6 +405,7 @@ export default {
     };
 
     return {
+      ...toRefs(state),
       reqHeaders,
       methods,
       onSubmit,
@@ -383,11 +415,12 @@ export default {
       onAddData,
       resJson,
       isEmpty,
-      state,
       delRecord,
       fillIn,
       handleSearch,
-      reqTable,viewJson
+      reqTable,
+      viewJson,
+      onJsonChange,
     };
   },
 };
@@ -397,6 +430,9 @@ export default {
 * {
   margin: 0;
   padding: 0;
+}
+/deep/.jsoneditor-poweredBy {
+  display: none;
 }
 .content {
   max-height: 50px;
